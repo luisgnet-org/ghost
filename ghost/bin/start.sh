@@ -17,16 +17,15 @@ else
 fi
 
 # Activate venv
-VENV_DIR="$HOME/ghost/venv"
-if [ -d "$VENV_DIR" ]; then
-    source "$VENV_DIR/bin/activate"
+if [ -d "${GHOST_VENV:-venv}" ]; then
+    source "${GHOST_VENV:-venv}/bin/activate"
 else
-    echo "ERROR: venv not found at $VENV_DIR"
+    echo "ERROR: venv not found at ${GHOST_VENV:-venv}"
     exit 1
 fi
 
-# Add ghost and agency to Python path
-export PYTHONPATH="$GHOST_ROOT:$REPO_ROOT/agency:$PYTHONPATH"
+# Add ghost to Python path
+export PYTHONPATH="$GHOST_ROOT:$PYTHONPATH"
 
 # Ensure run dirs exist
 mkdir -p "$HOME/ghost/ghost_run_dir/workflows"
@@ -40,6 +39,5 @@ else
         --recursive \
         --directory="$GHOST_ROOT/ghost" \
         --directory="$GHOST_ROOT/config" \
-        --directory="$REPO_ROOT/agency/agency" \
         -- python3 -m ghost.daemon
 fi
