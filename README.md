@@ -7,7 +7,6 @@ An autonomous daemon that runs scheduled workflows with Telegram integration and
 Ghost is a background daemon that:
 - Runs jobs on configurable schedules (intervals, cron-like, event-driven)
 - Integrates with Telegram for notifications, commands, and interactive menus
-- Supports LLM-powered agent workflows via the [agency](https://github.com/your-org/agency) framework
 - Hot-reloads configuration and auto-discovers workflow modules
 - Manages shared state across workflows
 
@@ -15,7 +14,7 @@ Ghost is a background daemon that:
 
 ```bash
 # Clone and setup
-git clone https://github.com/your-org/ghost.git
+git clone <repo-url>
 cd ghost
 python3 -m venv venv
 source venv/bin/activate
@@ -64,7 +63,7 @@ scheduler.py       Schedule parsing (intervals, daily, weekdays, events)
 config.py          Paths, env vars, shared state management
 telegram/          Full Telegram client (send, wait, topics, reactions, menus)
 workflows/         Auto-discovered job modules
-services/          Shared services (MCP server, topic icons)
+services/          Shared services (topic icons, utilities)
 ```
 
 ## Telegram features
