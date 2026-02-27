@@ -10,6 +10,24 @@ Ghost is a background daemon that:
 - Hot-reloads configuration and auto-discovers workflow modules
 - Manages shared state across workflows
 
+## How to use this
+
+Ghost is the engine. On its own it doesn't do much — it just runs workflows
+on schedule and talks to Telegram. The real value comes from the workflows
+you plug into it.
+
+The reference implementation is **ghost-claw**, a personality plugin that
+turns ghost into an autonomous AI teammate: it shuttles Telegram messages
+into an inbox, launches Claude Code sessions inside a macOS sandbox, and
+gives the agent persistent memory, identity files, and a council debate
+framework. But you can build any kind of agent or automation on top of ghost.
+
+To get started:
+1. Set up the daemon (below)
+2. Write a workflow or install a plugin (drop files in `ghost/workflows/`)
+3. Configure schedules in `config/config.yaml`
+4. The daemon handles the rest — hot-reloading, state management, retries
+
 ## Quick start
 
 ```bash
@@ -20,9 +38,15 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Configure
-cp .env.example .env
-# Edit .env with your Telegram bot token, chat ID, and LLM API keys
+# Configure — create a .env file with your keys
+cat > .env << 'ENVEOF'
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_CHAT_ID=your-chat-id
+# Optional — only needed by LLM-powered workflows
+# OPENAI_API_KEY=your-key
+# OPENAI_BASE_URL=https://api.openai.com/v1
+# OPENAI_MODEL=gpt-4
+ENVEOF
 
 # Start
 ghost/bin/start.sh
