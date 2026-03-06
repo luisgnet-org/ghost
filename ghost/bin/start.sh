@@ -29,6 +29,7 @@ export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"
 
 # Ensure run dirs exist
 mkdir -p "$HOME/ghost/ghost_run_dir/workflows"
+mkdir -p "$HOME/ghost/ghost_run_dir/telegram"
 
 # Start daemon
 if [ "$1" = "--no-reload" ]; then
