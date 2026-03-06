@@ -25,7 +25,7 @@ else
 fi
 
 # Add ghost to Python path
-export PYTHONPATH="$GHOST_ROOT:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"
 
 # Ensure run dirs exist
 mkdir -p "$HOME/ghost/ghost_run_dir/workflows"
@@ -37,7 +37,7 @@ else
     exec watchmedo auto-restart \
         --patterns='*.py;*.yaml' \
         --recursive \
-        --directory="$GHOST_ROOT/ghost" \
-        --directory="$GHOST_ROOT/config" \
+        --directory="$GHOST_ROOT" \
+        --directory="$REPO_ROOT/config" \
         -- python3 -m ghost.daemon
 fi
