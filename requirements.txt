@@ -3,5 +3,13 @@ pyyaml>=6.0
 python-telegram-bot>=21.0
 aiosqlite>=0.19.0
 
+# MCP server
+mcp>=1.0.0
+uvicorn>=0.29.0
+starlette>=0.37.0
+
+# MCP proxy
+aiohttp>=3.9.0
+
 # Optional — only needed by workflows that use LLMs
 # openai>=1.0.0
