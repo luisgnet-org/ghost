@@ -90,7 +90,18 @@ workflows/         Auto-discovered job modules
 services/          Shared services (topic icons, utilities)
 ```
 
-## Telegram features
+## Telegram setup
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) and copy the bot token
+2. Create a **group** (not a channel) and add your bot as admin
+3. Enable **Topics** in group settings (Settings > Topics > turn on)
+4. Get your chat ID: send a message in the group, then visit
+   `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` — look for `"chat":{"id":-100...}`
+5. Put both values in `.env`
+
+The daemon creates forum topics automatically as workflows request them.
+
+### Telegram features
 
 - Forum topic support (create, resolve, send to specific topics)
 - Inline keyboards and callback handling
