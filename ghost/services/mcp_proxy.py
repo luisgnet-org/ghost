@@ -14,13 +14,14 @@ Or as a launchd service (com.ghost.mcp-proxy.plist).
 import asyncio
 import json
 import logging
+import os
 import signal
 import uuid
 
 from aiohttp import web, ClientSession, ClientTimeout, ClientConnectionError
 
-PROXY_PORT = 7865
-BACKEND_PORT = 7866
+PROXY_PORT = int(os.environ.get("MCP_PROXY_PORT", "7865"))
+BACKEND_PORT = int(os.environ.get("MCP_BACKEND_PORT", "7866"))
 BACKEND_BASE = f"http://[::1]:{BACKEND_PORT}"
 
 log = logging.getLogger("mcp-proxy")

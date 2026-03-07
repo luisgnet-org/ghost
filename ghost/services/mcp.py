@@ -22,6 +22,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import re
 import threading
 from pathlib import Path
@@ -38,7 +39,7 @@ from ghost.telegram.markdown_v2 import escape as _escape_markdown_v2
 
 logger = logging.getLogger("ghost")
 
-MCP_PORT = 7866  # Backend port; clients connect to proxy on 7865
+MCP_PORT = int(os.environ.get("MCP_BACKEND_PORT", "7866"))  # clients connect to proxy on MCP_PROXY_PORT
 
 # Egress filter — blocks leaked secrets in outbound messages
 BLOCKLIST_PATTERNS = [
