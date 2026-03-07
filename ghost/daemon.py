@@ -101,12 +101,15 @@ class GhostDaemon:
         # Telegram command cursor — tracks last processed update_id
         self._tg_cmd_cursor = None
         self._bot_user_id = None
+        self._mcp_server = None
 
     async def start(self):
         """Start the daemon."""
         self.running = True
         logger.info("ghost starting")
         logger.info(f"Loaded {len(self.config.get('jobs', []))} jobs")
+
+        self._mcp_server = None
 
         # Start Telegram client
         if self.tg:
@@ -115,6 +118,23 @@ class GhostDaemon:
             await self.tg.register_commands(job_names)
             logger.info("TelegramClient started")
 
+        # Start claw MCP server (daemon-lifetime, fixed port)
+        if self.tg:
+            try:
+                from .services.mcp import AgentMCPServer
+                self._mcp_server = AgentMCPServer(self.tg)
+                ok = await self._mcp_server.start()
+                if ok:
+                    from .workflows import claw
+                    claw.set_mcp_server(self._mcp_server)
+                    logger.info("Claw MCP server started")
+                else:
+                    logger.error("Claw MCP server failed to start")
+                    self._mcp_server = None
+            except Exception as e:
+                logger.error(f"Claw MCP server init failed: {e}")
+                self._mcp_server = None
+
         # Suppress missed jobs on startup
         self._suppress_missed_jobs()
 
@@ -122,6 +142,8 @@ class GhostDaemon:
         try:
             await self._run_loop()
         finally:
+            if self._mcp_server:
+                await self._mcp_server.stop()
             if self.tg:
                 await self.tg.stop()
 
