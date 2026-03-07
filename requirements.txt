@@ -11,5 +11,8 @@ starlette>=0.37.0
 # MCP proxy
 aiohttp>=3.9.0
 
+# Auto-reload on file changes (optional — start.sh falls back gracefully if absent)
+watchdog>=4.0
+
 # Optional — only needed by workflows that use LLMs
 # openai>=1.0.0
