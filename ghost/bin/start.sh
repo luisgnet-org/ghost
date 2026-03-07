@@ -39,7 +39,8 @@ mkdir -p "$GHOST_HOME/ghost_run_dir/workflows"
 mkdir -p "$GHOST_HOME/ghost_run_dir/telegram"
 
 # Start daemon
-if [ "${1:-}" = "--no-reload" ]; then
+if [ "${1:-}" = "--no-reload" ] || [ ! -f "$WATCHMEDO" ]; then
+    [ ! -f "$WATCHMEDO" ] && echo "watchmedo not found — running without auto-reload (pip install watchdog to enable)"
     exec "$PYTHON" -m ghost.daemon
 else
     exec "$WATCHMEDO" auto-restart \
