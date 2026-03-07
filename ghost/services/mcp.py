@@ -379,9 +379,10 @@ class AgentMCPServer:
             listening.
 
             When new_messages > 0, the response includes a "messages" array
-            with the message content so you can respond immediately. Messages
-            are NOT marked as read — they remain in the inbox as unread
-            msg_*.json files.
+            with the message content. Messages are marked as read when
+            delivered here — this is the sole consumer. The io-bridge hook
+            only nudges you that messages are waiting; it does not deliver
+            or consume them.
 
             If cancelled=true is returned, a newer wait_for_message call is
             already running — do NOT call wait_for_message again.
@@ -405,11 +406,13 @@ class AgentMCPServer:
                     if f.name.startswith("msg_") and f.name.endswith(".json")
                 }
 
-            def _read_messages(filenames):
+            def _consume_messages(filenames):
+                """Read and mark as read all given inbox files."""
                 messages = []
                 for name in sorted(filenames):
                     try:
-                        data = json.loads((inbox / name).read_text())
+                        path = inbox / name
+                        data = json.loads(path.read_text())
                         msg = {
                             "from": data.get("from", "unknown"),
                             "text": data.get("text", ""),
@@ -421,23 +424,17 @@ class AgentMCPServer:
                         if data.get("media"):
                             msg["media"] = data["media"]
                         messages.append(msg)
+                        path.rename(path.with_suffix(".json.read"))
                     except Exception:
                         pass
                 return messages
-
-            note = (
-                "Messages are not marked as read — you will see them again "
-                "via the io-bridge hook on your next tool call. Respond to "
-                "the message content above before calling wait_for_message again."
-            )
 
             existing = _unread_messages()
             if existing:
                 return json.dumps({
                     "new_messages": len(existing),
                     "waited_seconds": 0,
-                    "messages": _read_messages(existing),
-                    "note": note,
+                    "messages": _consume_messages(existing),
                 })
 
             poll_interval = 1
@@ -456,8 +453,7 @@ class AgentMCPServer:
                     return json.dumps({
                         "new_messages": len(current),
                         "waited_seconds": elapsed,
-                        "messages": _read_messages(current),
-                        "note": note,
+                        "messages": _consume_messages(current),
                     })
 
             return json.dumps({
