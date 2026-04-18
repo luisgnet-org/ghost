@@ -211,14 +211,13 @@ class AgentRuntime:
             model_name = model.get("model", "default")
             config["model"] = f"{provider}/{model_name}"
 
+            provider_config = {}
             if model.get("api_key"):
-                api_key = os.path.expandvars(model["api_key"])
-                config.setdefault("providers", {})[provider] = {"apiKey": api_key}
+                provider_config["apiKey"] = os.path.expandvars(model["api_key"])
             if model.get("base_url"):
-                config.setdefault("providers", {})[provider] = {
-                    **config.get("providers", {}).get(provider, {}),
-                    "baseURL": model["base_url"],
-                }
+                provider_config["baseURL"] = model["base_url"]
+            if provider_config:
+                config.setdefault("providers", {})[provider] = provider_config
 
         (workspace / "opencode.json").write_text(json.dumps(config, indent=2))
 

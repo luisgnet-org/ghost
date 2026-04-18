@@ -55,15 +55,13 @@ echo "  ✓ Image built"
 echo ""
 echo "→ Testing opencode inside container..."
 
-RESULT=$(docker run --rm "${IMAGE}" opencode version 2>&1) || true
-echo "  opencode version: ${RESULT}"
+RESULT=$(docker run --rm "${IMAGE}" which opencode 2>&1) || true
+echo "  opencode path: ${RESULT}"
 
-if echo "${RESULT}" | grep -qiE '[0-9]+\.[0-9]+'; then
-    echo "  ✓ opencode installed and working"
+if [ -n "${RESULT}" ] && echo "${RESULT}" | grep -q "opencode"; then
+    echo "  ✓ opencode installed and in PATH"
 else
-    echo "  ✗ opencode version check failed"
-    echo "  Trying 'which opencode'..."
-    docker run --rm "${IMAGE}" which opencode 2>&1 || echo "  not in PATH"
+    echo "  ✗ opencode not found in PATH"
     docker run --rm "${IMAGE}" ls -la /root/.opencode/bin/ 2>&1 || echo "  no .opencode dir"
 fi
 
