@@ -42,7 +42,7 @@ ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode
 mkdir -p /ghost
 "
 
-RUN_CMD=$(echo "${BUILD_CMDS}" | sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' | paste -sd'&&' - | sed 's/&&/ \&\& /g')
+RUN_CMD=$(echo "${BUILD_CMDS}" | sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' | awk '{printf "%s%s", sep, $0; sep=" && "} END{print ""}')
 
 echo "FROM ${BASE_IMAGE}
 RUN ${RUN_CMD}

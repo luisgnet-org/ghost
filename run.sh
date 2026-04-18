@@ -84,7 +84,7 @@ if ! docker image inspect "${IMAGE}" &>/dev/null; then
     echo "→ Building image ${IMAGE}..."
 
     # Strip comments and blank lines, join with " && " into one RUN
-    RUN_CMD=$(echo "${BUILD_CMDS}" | sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' | paste -sd'&&' - | sed 's/&&/ \&\& /g')
+    RUN_CMD=$(echo "${BUILD_CMDS}" | sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' | awk '{printf "%s%s", sep, $0; sep=" && "} END{print ""}')
 
     echo "FROM ${BASE_IMAGE}
 RUN ${RUN_CMD}
