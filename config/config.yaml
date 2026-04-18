@@ -14,14 +14,16 @@ jobs:
     workflow: worker_pool
     enabled: true
 
-  # Example: per-project research agent
-  # Uncomment and configure for each project you want to track.
+  # Example: research loop
+  # Design → fan-out → collect → postmortem → repeat
   #
-  # - name: proj_a
-  #   schedule: "every 2h"
+  # - name: scaling_research
+  #   schedule: "every 30m"
   #   workflow: research_loop
-  #   enabled: true
+  #   enabled: false
   #   config:
-  #     agent_name: proj-a
-  #     repo: /path/to/project-a
-  #     research_prompt: "Continue autonomous research. Check papers, run experiments, update findings."
+  #     goal: "What are the most promising approaches to efficient inference for large language models?"
+  #     max_cycles: 3
+  #     fan_out: 3
+  #     agent: researcher
+  #     timeout: 1800
