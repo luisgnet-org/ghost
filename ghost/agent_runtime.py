@@ -48,11 +48,15 @@ class AgentRuntime:
         self,
         task_id: int,
         agent_name: str = "default",
-        model: str | None = None,
+        model: str | dict | None = None,
         prompt: str | None = None,
         timeout: int = 1800,
     ) -> str:
-        """Spawn an opencode agent for a task. Returns agent_id."""
+        """Spawn an opencode agent for a task. Returns agent_id.
+
+        model can be a string (model name) or a dict with full config:
+            {"provider": "groq", "model": "llama-3.3-70b", "api_key": "...", "base_url": "..."}
+        """
         agent_id = f"agent_{agent_name}_{task_id}_{datetime.now().strftime('%H%M%S')}"
         session_dir = self._create_session_dir(agent_id)
         workspace = self._prepare_workspace(agent_name, task_id)
@@ -60,6 +64,7 @@ class AgentRuntime:
         if prompt is None:
             prompt = self._build_prompt(task_id, agent_name)
 
+        self._write_opencode_config(workspace, model)
         env = self._build_env(agent_id, agent_name, session_dir)
 
         log_path = session_dir / f"{agent_id}.log"
@@ -192,6 +197,30 @@ class AgentRuntime:
                     link.symlink_to(target)
 
         return workspace
+
+    def _write_opencode_config(self, workspace: Path, model: str | dict | None) -> None:
+        """Write opencode.json into the workspace with the model config."""
+        config = {"$schema": "https://opencode.ai/config.json"}
+
+        if model is None:
+            config["model"] = "opencode/default"
+        elif isinstance(model, str):
+            config["model"] = model
+        elif isinstance(model, dict):
+            provider = model.get("provider", "openai")
+            model_name = model.get("model", "default")
+            config["model"] = f"{provider}/{model_name}"
+
+            if model.get("api_key"):
+                api_key = os.path.expandvars(model["api_key"])
+                config.setdefault("providers", {})[provider] = {"apiKey": api_key}
+            if model.get("base_url"):
+                config.setdefault("providers", {})[provider] = {
+                    **config.get("providers", {}).get(provider, {}),
+                    "baseURL": model["base_url"],
+                }
+
+        (workspace / "opencode.json").write_text(json.dumps(config, indent=2))
 
     def _build_env(self, agent_id: str, agent_name: str, session_dir: Path) -> dict:
         env = os.environ.copy()

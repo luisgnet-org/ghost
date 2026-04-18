@@ -10,7 +10,7 @@ import os
 import sys
 from pathlib import Path
 
-from ghost.config import GHOST_HOME
+from ghost.config import GHOST_HOME, load_config
 from ghost.agent_runtime import AgentRuntime
 
 sys.path.insert(0, str(GHOST_HOME))
@@ -61,7 +61,12 @@ async def run(llm_client, config: dict):
 
         task_id = contract["id"]
         agent_name = meta.get("agent", "worker")
-        model = config.get("model")
+
+        # Resolve model name to full config from models section
+        model_name = config.get("model")
+        full_config = load_config()
+        models = full_config.get("models", {})
+        model = models.get(model_name, model_name) if model_name else None
 
         try:
             agent_id = await runtime.spawn(

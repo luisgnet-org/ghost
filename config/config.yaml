@@ -1,6 +1,30 @@
 # ghost configuration
 # Changes are hot-reloaded by the daemon.
 
+# ─── Model providers ───────────────────────────────────────────
+# Define named model configurations. Workflows reference these by name.
+# Each provider specifies everything opencode needs to connect.
+models:
+  groq-llama:
+    provider: groq
+    model: llama-3.3-70b-versatile
+    api_key: "${GROQ_API_KEY}"
+    base_url: https://api.groq.com/openai/v1
+
+  # vLLM on local GPU server
+  # local-qwen:
+  #   provider: openai
+  #   model: Qwen/Qwen2.5-Coder-32B-Instruct
+  #   api_key: local
+  #   base_url: http://gpu-server:8000/v1
+
+  # Remote endpoint with auth
+  # remote-claude:
+  #   provider: anthropic
+  #   model: claude-sonnet-4-20250514
+  #   api_key: "${ANTHROPIC_API_KEY}"
+
+# ─── Jobs ──────────────────────────────────────────────────────
 jobs:
   # Daemon status - periodic health heartbeat
   - name: daemon_status
@@ -13,6 +37,8 @@ jobs:
     schedule: "every 5s"
     workflow: worker_pool
     enabled: true
+    config:
+      model: groq-llama
 
   # Example: research loop
   # Design → fan-out → collect → postmortem → repeat
@@ -22,6 +48,7 @@ jobs:
   #   workflow: research_loop
   #   enabled: false
   #   config:
+  #     model: groq-llama
   #     goal: "What are the most promising approaches to efficient inference for large language models?"
   #     max_cycles: 3
   #     fan_out: 3
