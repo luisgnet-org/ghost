@@ -6,10 +6,15 @@ opencode agents via AgentRuntime, enforces pool limits and timeouts.
 
 import json
 import logging
+import os
+import sys
 from pathlib import Path
 
 from ghost.config import GHOST_HOME
 from ghost.agent_runtime import AgentRuntime
+
+sys.path.insert(0, str(GHOST_HOME))
+from lib.tasks_core import set_task_state
 
 logger = logging.getLogger("ghost")
 
@@ -66,11 +71,16 @@ async def run(llm_client, config: dict):
                 timeout=contract.get("ttl", 1800),
             )
 
-            # Mark as dispatched
-            meta["dispatched"] = True
-            meta["agent_id"] = agent_id
-            contract["meta"] = meta
-            TASK_BOARD.write_text(json.dumps(board, indent=2))
+            # Transition task to claimed
+            old_agent = os.environ.get("GHOST_AGENT_ID")
+            os.environ["GHOST_AGENT_ID"] = agent_id
+            try:
+                set_task_state(task_id, "claimed")
+            finally:
+                if old_agent:
+                    os.environ["GHOST_AGENT_ID"] = old_agent
+                else:
+                    os.environ.pop("GHOST_AGENT_ID", None)
 
             active = runtime.list_active()
             logger.info(f"worker_pool: dispatched task #{task_id} → {agent_id}")
