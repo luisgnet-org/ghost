@@ -1,86 +1,80 @@
 # ghost
 
-Autonomous daemon with scheduled workflows, Telegram integration, and plugin-based extensibility.
+Standalone autonomous daemon. Schedules agent workflows, routes messages via
+JSONL channels, manages opencode agent sessions. No external dependencies.
 
 ## Structure
 
 ```
 ghost/                              # repo root
-├── ghost/                          # Python package
-│   ├── daemon.py                   #   Main async daemon loop
+├── ghost/                          # Python package (daemon)
+│   ├── daemon.py                   #   Async scheduler loop
 │   ├── scheduler.py                #   Schedule parsing (cron, interval, event)
-│   ├── config.py                   #   Configuration management
-│   ├── telegram/                   #   Telegram client library
-│   │   ├── client.py               #     Unified API (send, wait, topics)
-│   │   ├── store.py                #     SQLite event storage
-│   │   ├── _watcher.py             #     Long-poll update watcher
-│   │   ├── wait.py                 #     Event waiting with filters
-│   │   ├── markdown_v2.py          #     MarkdownV2 escaping
-│   │   └── menus.py                #     Menu builder utilities
+│   ├── config.py                   #   Configuration + path management
+│   ├── channels.py                 #   Append-only JSONL message bus
+│   ├── agent_runtime.py            #   opencode session lifecycle
+│   ├── event_log.py                #   Structured event logging
 │   ├── workflows/                  #   Auto-discovered workflow modules
-│   ├── services/                   #   Shared services (MCP, topic icons)
+│   │   ├── worker_pool.py          #     Task board → agent dispatch
+│   │   └── daemon_status.py        #     Health heartbeat
 │   └── bin/                        #   Start/stop scripts
+├── agent/                          # Agent template (copied per instance)
+│   ├── AGENT.md                    #   System prompt for opencode
+│   ├── SOUL/                       #   Identity, comms style
+│   ├── bin/                        #   Agent tools (messages, mem, tasks)
+│   └── memory/                     #   Session logs
+├── lib/                            # Shared libraries
+│   └── tasks_core.py              #   Task queue (flock-based concurrency)
+├── tui/                            # Terminal messaging interface
+│   ├── send.py                     #   Write message to channel
+│   └── watch.py                    #   Tail channels, display messages
 ├── config/config.yaml              # Job definitions (hot-reloaded)
-├── requirements.txt
-├── .env.example
-└── .gitignore
+├── install.sh                      # One-command setup
+└── requirements.txt
 ```
 
 ## Setup
 
 ```bash
-# Create venv
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your API keys
-
-# Start daemon
+./install.sh
+# Edit .env with your LLM endpoint
 ghost/bin/start.sh
 ```
 
 ## Environment
 
-Required in `.env`:
-- `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` — LLM provider config
-- `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` — Telegram bot + group chat
-
-Optional:
-- `TOGGL_API_TOKEN` — Toggl time tracking
-- `GROQ_API_KEY` — Groq API (audio transcription)
+In `.env`:
+- `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` — LLM provider (vLLM, ollama, etc.)
+- `GHOST_HOME` — root directory (defaults to repo root)
+- `GHOST_RUNS_DIR` — runtime data (defaults to `$GHOST_HOME/run`)
 
 ## Workflows
 
-Workflows are Python modules in `ghost/workflows/`. They're auto-discovered on startup.
-
-Each workflow module should provide either:
-- `async run(tg, llm_client, config)` — self-managed async workflow
-- `create_agent(tg, config)` — returns `(AgentState, AgentCallbacks)` for the daemon to run
+Auto-discovered from `ghost/workflows/`. Each module provides:
+- `async run(llm_client, config)` — workflow entry point
 
 Optional:
-- `should_run_check()` — return `False` to skip a scheduled run
-
-Register workflows in `config/config.yaml`:
-```yaml
-jobs:
-  - name: my_workflow
-    schedule: "every 30m"
-    workflow: my_workflow
-    enabled: true
-```
+- `should_run_check()` — return `False` to skip
 
 ## Schedule Syntax
 
 - `"every 30s"` / `"every 5m"` / `"every 2h"` — interval-based
-- `"daily 9:00"` — once per day at time
-- `"weekdays 6:00"` — Monday-Friday only
-- `"on_wake"` — fires when wake event is emitted
-- List of schedules: `["on_wake", "every 2h"]`
+- `"daily 9:00"` — once per day
+- `"weekdays 6:00"` — Monday-Friday
+- `"on_wake"` — event-driven
+- List: `["on_wake", "every 2h"]`
+
+## Channels
+
+Communication via append-only JSONL files in `run/channels/`. Agents and TUI
+both read/write the same files. No server needed — pure filesystem.
+
+```python
+from ghost.channels import write, read, poll
+write("agent_name", "hello", from_id="user", source="tui")
+```
 
 ## Style
 
-- Use `pathlib.Path` over `os.path` for all file operations.
-- Async-first: all I/O goes through `asyncio`.
+- `pathlib.Path` over `os.path`.
+- Async-first: all I/O through `asyncio`.

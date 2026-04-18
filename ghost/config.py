@@ -9,20 +9,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 logger = logging.getLogger("ghost")
 
 
-# Paths
+# Paths — all configurable via environment variables
 GHOST_AGENCY_DIR = Path(__file__).parent
 PROJECT_ROOT = GHOST_AGENCY_DIR.parent
 CONFIG_PATH = PROJECT_ROOT / "config" / "config.yaml"
-GHOST_HOME = Path(os.environ.get("GHOST_HOME", str(Path.home() / "ghost")))
-RUNS_DIR = GHOST_HOME / "ghost_run_dir"
+GHOST_HOME = Path(os.environ.get("GHOST_HOME", PROJECT_ROOT))
+RUNS_DIR = Path(os.environ.get("GHOST_RUNS_DIR", GHOST_HOME / "run"))
 WORKFLOWS_DIR = RUNS_DIR / "workflows"
 STATE_PATH = RUNS_DIR / "state.json"
-TELEGRAM_DB_PATH = RUNS_DIR / "telegram" / "telegram.db"
+AGENTS_DIR = GHOST_HOME / "agents"
 
 
 def workflow_dir(name: str) -> Path:
@@ -36,6 +39,8 @@ def load_config() -> dict:
     """Load configuration from YAML."""
     try:
         if CONFIG_PATH.exists():
+            if yaml is None:
+                raise ImportError("pyyaml not installed — run: pip install pyyaml")
             return yaml.safe_load(CONFIG_PATH.read_text()) or {}
     except Exception as e:
         print(f"[config] Failed to load: {e}")
@@ -51,32 +56,8 @@ def get_llm_config() -> dict:
     """Get LLM configuration from environment."""
     return {
         "api_key": get_env("LLM_API_KEY"),
-        "base_url": get_env("LLM_BASE_URL", "https://api.groq.com/openai/v1"),
-        "model": get_env("LLM_MODEL", "llama-3.3-70b-versatile"),
-    }
-
-
-def get_telegram_config() -> dict:
-    """Get Telegram configuration from environment."""
-    return {
-        "bot_token": get_env("TELEGRAM_BOT_TOKEN"),
-        "chat_id": get_env("TELEGRAM_CHAT_ID"),
-    }
-
-
-def get_transcription_config() -> dict:
-    """Get audio transcription configuration (Groq Whisper API)."""
-    return {
-        "api_key": get_env("GROQ_API_KEY") or get_env("LLM_API_KEY"),
-        "model": "whisper-large-v3-turbo",
-        "endpoint": "https://api.groq.com/openai/v1/audio/transcriptions",
-    }
-
-
-def get_toggl_config() -> dict:
-    """Get Toggl configuration from environment."""
-    return {
-        "api_token": get_env("TOGGL_API_TOKEN"),
+        "base_url": get_env("LLM_BASE_URL", "http://localhost:8000/v1"),
+        "model": get_env("LLM_MODEL", "default"),
     }
 
 
@@ -96,18 +77,15 @@ def set_not_before(job_name: str, until_dt: datetime) -> None:
 
 
 # --- Shared workflow state ---
-# Workflows publish values here for other workflows to read.
-# Values are stored as naive local-time ISO strings.
 
 def set_shared(key: str, value) -> None:
-    """Set a shared value in state.json["shared"]. Converts datetimes to local naive ISO."""
+    """Set a shared value in state.json["shared"]."""
     try:
         state = {}
         if STATE_PATH.exists():
             state = json.loads(STATE_PATH.read_text())
         if "shared" not in state:
             state["shared"] = {}
-        # Convert tz-aware datetimes to local naive
         if isinstance(value, datetime):
             if value.tzinfo is not None:
                 value = value.astimezone().replace(tzinfo=None)
@@ -130,7 +108,7 @@ def get_shared(key: str, default=None):
 
 
 def emit_event(event_name: str) -> None:
-    """Emit an event for the daemon to consume. Daemon dispatches on_<event_name> schedules."""
+    """Emit an event for the daemon to consume."""
     try:
         state = {}
         if STATE_PATH.exists():

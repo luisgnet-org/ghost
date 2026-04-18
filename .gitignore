@@ -2,11 +2,18 @@
 .env
 
 # Runtime state
-ghost_run_dir/
+run/
 *.db
 *.db-shm
 *.db-wal
 state.json
+.tasks.json
+.tasks.jsonl
+.tasks.lock
+
+# Agent workspaces (contain session data)
+agents/*/memory/
+agents/*/sessions/
 
 # Python
 __pycache__/

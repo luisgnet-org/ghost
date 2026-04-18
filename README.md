@@ -1,114 +1,87 @@
 # ghost
 
-An autonomous daemon that runs scheduled workflows with Telegram integration and LLM-powered agents.
+Autonomous daemon that runs AI research agents 24/7. Each agent manages
+a separate project, compounds research overnight, and you talk to them
+from any terminal.
 
 ## What it does
 
-Ghost is a background daemon that:
-- Runs jobs on configurable schedules (intervals, cron-like, event-driven)
-- Integrates with Telegram for notifications, commands, and interactive menus
-- Hot-reloads configuration and auto-discovers workflow modules
-- Manages shared state across workflows
-
-## How to use this
-
-Ghost is the engine. On its own it doesn't do much — it just runs workflows
-on schedule and talks to Telegram. The real value comes from the workflows
-you plug into it.
-
-The reference implementation is **ghost-claw**, a personality plugin that
-turns ghost into an autonomous AI teammate: it shuttles Telegram messages
-into an inbox, launches Claude Code sessions inside a macOS sandbox, and
-gives the agent persistent memory, identity files, and a council debate
-framework. But you can build any kind of agent or automation on top of ghost.
-
-To get started:
-1. Set up the daemon (below)
-2. Write a workflow or install a plugin (drop files in `ghost/workflows/`)
-3. Configure schedules in `config/config.yaml`
-4. The daemon handles the rest — hot-reloading, state management, retries
+- Schedules agent workflows on configurable intervals
+- Routes messages via append-only JSONL channels (no external services)
+- Spawns and manages opencode sessions (any OpenAI-compatible LLM)
+- Task pipeline: design experiments → fan out → collect → postmortem → repeat
+- One command install, zero vendor lock-in
 
 ## Quick start
 
 ```bash
-# Clone and setup
 git clone <repo-url>
 cd ghost
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+./install.sh
 
-# Configure — create a .env file with your keys
-cat > .env << 'ENVEOF'
-TELEGRAM_BOT_TOKEN=your-bot-token
-TELEGRAM_CHAT_ID=your-chat-id
-# Optional — only needed by LLM-powered workflows
-# OPENAI_API_KEY=your-key
-# OPENAI_BASE_URL=https://api.openai.com/v1
-# OPENAI_MODEL=gpt-4
-ENVEOF
+# Edit .env with your LLM endpoint
+vim .env
 
-# Start
+# Start the daemon
 ghost/bin/start.sh
+
+# Send a message to an agent
+python3 tui/send.py --agent default "hello"
+
+# Watch for replies
+python3 tui/watch.py --agent default --follow
 ```
-
-## Configuration
-
-Jobs are defined in `config/config.yaml` and hot-reloaded:
-
-```yaml
-jobs:
-  - name: my_workflow
-    schedule: "every 30m"      # or "daily 9:00", "weekdays 6:00", "on_wake"
-    workflow: my_workflow       # maps to ghost/workflows/my_workflow.py
-    run_while_sleeping: false   # skip when user is sleeping (optional)
-    enabled: true
-```
-
-## Writing workflows
-
-Drop a Python file in `ghost/workflows/`:
-
-```python
-# ghost/workflows/my_workflow.py
-
-async def run(tg, llm_client, config):
-    """Called by the daemon on schedule."""
-    await tg.send_message("Hello from my workflow!", topic="general")
-```
-
-The daemon auto-discovers it. Register in `config/config.yaml` to schedule it.
 
 ## Architecture
 
 ```
-daemon.py          Main async loop — checks schedules, dispatches jobs
-scheduler.py       Schedule parsing (intervals, daily, weekdays, events)
-config.py          Paths, env vars, shared state management
-telegram/          Full Telegram client (send, wait, topics, reactions, menus)
-workflows/         Auto-discovered job modules
-services/          Shared services (topic icons, utilities)
+ghost/                  Python package (daemon)
+  daemon.py             Async scheduler loop
+  channels.py           Append-only JSONL message bus
+  agent_runtime.py      opencode session lifecycle
+  scheduler.py          Cron/interval/event parsing
+  workflows/            Auto-discovered workflow modules
+
+agent/                  Agent template (copied per project)
+  AGENT.md              System prompt
+  SOUL/                 Identity, communication style
+  bin/                  Agent tools (messages, mem, tasks)
+
+lib/tasks_core.py       Task queue with flock-based concurrency
+tui/                    Terminal messaging (send + watch)
+config/config.yaml      Job definitions (hot-reloaded)
 ```
 
-## Telegram setup
+## Configuration
 
-1. Create a bot via [@BotFather](https://t.me/BotFather) and copy the bot token
-2. Create a **group** (not a channel) and add your bot as admin
-3. Enable **Topics** in group settings (Settings > Topics > turn on)
-4. Get your chat ID: send a message in the group, then visit
-   `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` — look for `"chat":{"id":-100...}`
-5. Put both values in `.env`
+Jobs in `config/config.yaml`:
 
-The daemon creates forum topics automatically as workflows request them.
+```yaml
+jobs:
+  - name: worker_pool
+    schedule: "every 5s"
+    workflow: worker_pool
+    enabled: true
+```
 
-### Telegram features
+Schedule syntax: `"every 5m"`, `"daily 9:00"`, `"weekdays 6:00"`, `"on_wake"`,
+or a list: `["on_wake", "every 2h"]`
 
-- Forum topic support (create, resolve, send to specific topics)
-- Inline keyboards and callback handling
-- Event waiting with filters (reply, thread, topic, callback data)
-- MarkdownV2 auto-escaping
-- Bot command registration
-- SQLite-backed event store with pruning
+## Writing workflows
+
+```python
+# ghost/workflows/my_workflow.py
+async def run(llm_client, config):
+    """Called by the daemon on schedule."""
+    from ghost.channels import write
+    write("my-agent", "research update", from_id="workflow", source="daemon")
+```
+
+## Environment
+
+In `.env`:
+- `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` — LLM provider (vLLM, ollama, etc.)
+- `GHOST_HOME` — root directory (defaults to repo root)
 
 ## License
 

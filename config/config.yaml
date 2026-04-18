@@ -2,83 +2,26 @@
 # Changes are hot-reloaded by the daemon.
 
 jobs:
-  # Heartbeat - simple liveness ping (disabled by default)
-  - name: heartbeat
-    schedule: "every 60s"
-    workflow: heartbeat
-    message: "ghost is alive"
-    enabled: false
-
-  # Toggl sync - polls Toggl API for time tracking data
-  - name: toggl_sync
-    schedule: "every 5m"
-    workflow: toggl_sync
-    run_while_sleeping: true
-    register_command: false
-    enabled: false
-
-  # Activity tracker - auto-log building time from HID + tmux signals
-  - name: activity_sync
-    schedule: "every 1m"
-    workflow: activity_sync
-    run_while_sleeping: false
-    register_command: false
-    enabled: false
-
-  # Activity report - build time summary
-  - name: activity_report
-    schedule:
-      - "on_wake"
-      - "every 2h"
-    workflow: activity_report
-    enabled: false
-
-  # Screen time sync - daily report of app usage
-  - name: screentime_sync
-    schedule: "on_wake"
-    workflow: screentime_sync
-    enabled: false
-
-  # Morning brief - sends briefing on wake event
-  - name: morning_brief
-    schedule: "on_wake"
-    workflow: morning_brief
-    enabled: false
-
-  # Habit nudge - check habits and nudge if behind schedule
-  - name: habit_nudge
-    schedule: "every 30m"
-    workflow: habit_nudge
-    run_while_sleeping: false
-    enabled: false
-
-  # Break reminder - nudge to take breaks during long work sessions
-  - name: break_reminder
-    schedule: "every 30m"
-    workflow: break_reminder
-    run_while_sleeping: false
-    threshold_minutes: 90
-    enabled: false
-
-  # Chat responder - respond to messages in a topic
-  - name: chat_responder
-    schedule: "every 1s"
-    workflow: chat_responder
-    register_command: false
-    enabled: false
-
-  # Daemon status - hourly operational status ping
+  # Daemon status - periodic health heartbeat
   - name: daemon_status
     schedule: "every 1h"
     workflow: daemon_status
-    run_while_sleeping: false
-    enabled: false
+    enabled: true
 
-  # Example agent workflow (plugin-based)
-  # - name: my_agent
-  #   schedule: "every 5s"
-  #   workflow: my_agent
-  #   run_while_sleeping: true
-  #   enabled: false
+  # Worker pool - dispatch agents from task board
+  - name: worker_pool
+    schedule: "every 5s"
+    workflow: worker_pool
+    enabled: true
+
+  # Example: per-project research agent
+  # Uncomment and configure for each project you want to track.
+  #
+  # - name: proj_a
+  #   schedule: "every 2h"
+  #   workflow: research_loop
+  #   enabled: true
   #   config:
-  #     default_topic: "MY_AGENT"
+  #     agent_name: proj-a
+  #     repo: /path/to/project-a
+  #     research_prompt: "Continue autonomous research. Check papers, run experiments, update findings."

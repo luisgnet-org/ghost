@@ -1,52 +1,33 @@
 #!/bin/bash
 # Start the ghost daemon
 
-# Self-locate: this script is at GHOST_HOME/git/ghost/ghost/bin/start.sh
-# Walk up: bin/ → ghost/ (package) → ghost/ (repo) → git/ → GHOST_HOME/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GHOST_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"       # ghost Python package dir
-REPO_ROOT="$(cd "$GHOST_ROOT/.." && pwd)"        # git/ghost repo root
-GHOST_HOME="${GHOST_HOME:-$(cd "$REPO_ROOT/../.." && pwd)}"
+GHOST_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$GHOST_ROOT/.." && pwd)"
+GHOST_HOME="${GHOST_HOME:-$REPO_ROOT}"
 export GHOST_HOME
 cd "$REPO_ROOT"
 
-# Load environment — .env lives at GHOST_HOME root (no paths inside it)
+# Load environment
 if [ -f "$GHOST_HOME/.env" ]; then
     set -a; source "$GHOST_HOME/.env"; set +a
 elif [ -f "$REPO_ROOT/.env" ]; then
     set -a; source "$REPO_ROOT/.env"; set +a
+fi
+
+# Python — use venv if available, fall back to system
+if [ -f "$GHOST_HOME/venv/bin/python3" ]; then
+    PYTHON="$GHOST_HOME/venv/bin/python3"
+elif [ -f "$REPO_ROOT/venv/bin/python3" ]; then
+    PYTHON="$REPO_ROOT/venv/bin/python3"
 else
-    echo "ERROR: .env not found at $GHOST_HOME/.env or $REPO_ROOT/.env"
-    exit 1
+    PYTHON="python3"
 fi
 
-# Derive venv from GHOST_HOME — avoid 'source activate' (breaks after dir renames)
-VENV="$GHOST_HOME/venv"
-PYTHON="$VENV/bin/python3"
-WATCHMEDO="$VENV/bin/watchmedo"
-
-if [ ! -f "$PYTHON" ]; then
-    echo "ERROR: Python not found at $PYTHON"
-    echo "  Run: python3 -m venv $VENV && $VENV/bin/pip install -r $REPO_ROOT/requirements.txt"
-    exit 1
-fi
-
-# Add ghost to Python path
 export PYTHONPATH="$REPO_ROOT:${PYTHONPATH:-}"
 
-# Ensure run dirs exist
-mkdir -p "$GHOST_HOME/ghost_run_dir/workflows"
-mkdir -p "$GHOST_HOME/ghost_run_dir/telegram"
+# Ensure run dirs
+mkdir -p "$GHOST_HOME/run/workflows"
+mkdir -p "$GHOST_HOME/run/channels"
 
-# Start daemon
-if [ "${1:-}" = "--no-reload" ] || [ ! -f "$WATCHMEDO" ]; then
-    [ ! -f "$WATCHMEDO" ] && echo "watchmedo not found — running without auto-reload (pip install watchdog to enable)"
-    exec "$PYTHON" -m ghost.daemon
-else
-    exec "$WATCHMEDO" auto-restart \
-        --patterns='*.py;*.yaml' \
-        --recursive \
-        --directory="$GHOST_ROOT" \
-        --directory="$REPO_ROOT/config" \
-        -- "$PYTHON" -m ghost.daemon
-fi
+exec "$PYTHON" -m ghost.daemon

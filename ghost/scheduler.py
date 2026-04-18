@@ -14,9 +14,6 @@ class Job(TypedDict, total=False):
     schedule: str
     action: str
     message: str
-    budget_usd: float
-    escalate: dict
-    stall_days: int
     enabled: bool
 
 
@@ -65,25 +62,23 @@ def should_run(job: Job, now: datetime, last_run: Optional[datetime]) -> Schedul
     - "daily 3:00" - every day at specific time
     - "weekdays 6:00" - Mon-Fri at specific time
     - "monday 10:00" - specific day at specific time
+    - "on_*" - event-driven (handled by daemon, not scheduler)
     """
     schedule = job.get('schedule', '')
 
     if not job.get('enabled', True):
         return ScheduleMatch(False)
 
-    # Support list schedules: ["on_wake", "every 2h"]
-    # Check each non-event part; events (on_*) are handled by the daemon directly.
     if isinstance(schedule, list):
         for part in schedule:
             if part.startswith('on_'):
-                continue  # event triggers handled by daemon event dispatch
+                continue
             sub_job = dict(job, schedule=part)
             match = should_run(sub_job, now, last_run)
             if match.should_run:
                 return match
         return ScheduleMatch(False)
 
-    # Interval schedules: "every Xm/h/s/d"
     if schedule.startswith('every '):
         interval_str = schedule[6:].strip()
         interval = parse_interval(interval_str)
@@ -96,30 +91,24 @@ def should_run(job: Job, now: datetime, last_run: Optional[datetime]) -> Schedul
 
         return ScheduleMatch(False, last_run + interval)
 
-    # Daily schedule: "daily HH:MM"
     if schedule.startswith('daily '):
         time_str = schedule[6:].strip()
         hour, minute = parse_time(time_str)
-
         target_today = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        # If we haven't run today and it's past the time
         if last_run is None or last_run.date() < now.date():
             if now >= target_today:
                 return ScheduleMatch(True)
 
-        # Next run is today (if not yet) or tomorrow
         if now < target_today:
             return ScheduleMatch(False, target_today)
         else:
             return ScheduleMatch(False, target_today + timedelta(days=1))
 
-    # Weekdays schedule: "weekdays HH:MM"
     if schedule.startswith('weekdays '):
         time_str = schedule[9:].strip()
         hour, minute = parse_time(time_str)
 
-        # Check if today is a weekday (0-4 = Mon-Fri)
         if now.weekday() > 4:
             return ScheduleMatch(False)
 
@@ -131,7 +120,6 @@ def should_run(job: Job, now: datetime, last_run: Optional[datetime]) -> Schedul
 
         return ScheduleMatch(False, target_today if now < target_today else None)
 
-    # Specific day: "monday HH:MM", "tuesday HH:MM", etc.
     for day_name, day_num in WEEKDAYS.items():
         if schedule.lower().startswith(day_name + ' '):
             time_str = schedule[len(day_name) + 1:].strip()
@@ -148,8 +136,7 @@ def should_run(job: Job, now: datetime, last_run: Optional[datetime]) -> Schedul
 
             return ScheduleMatch(False, target_today if now < target_today else None)
 
-    # on_wake: daemon handles triggering directly, scheduler never fires
-    if schedule == "on_wake":
+    if schedule.startswith("on_"):
         return ScheduleMatch(False)
 
     raise ValueError(f"Unknown schedule format: {schedule}")
