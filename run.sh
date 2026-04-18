@@ -26,21 +26,35 @@ VOLUMES=(
 )
 
 # ─── GPU / NVIDIA config ───────────────────────────────────────
-GPU_ARGS=(
-    --gpus all
-    --runtime=nvidia
-    -e NVIDIA_VISIBLE_DEVICES=all
-    -e NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    # -e CUDA_VISIBLE_DEVICES=0,1
-)
+# Auto-detected. If nvidia-smi is available, GPU args are included.
+# Otherwise skipped (allows running on Mac Mini or CPU-only hosts).
+GPU_ARGS=()
+if command -v nvidia-smi &>/dev/null; then
+    GPU_ARGS=(
+        --gpus all
+        --runtime=nvidia
+        -e NVIDIA_VISIBLE_DEVICES=all
+        -e NVIDIA_DRIVER_CAPABILITIES=compute,utility
+        # -e CUDA_VISIBLE_DEVICES=0,1
+    )
+fi
 
 # ─── Entrypoint ────────────────────────────────────────────────
-# Multi-line string. This is what runs inside the container.
+# Multi-line string. Runs inside the container.
+# watchmedo auto-restarts the daemon whenever .py files change.
 ENTRYPOINT="
 source activate /opt/conda/envs/${CONDA_ENV} 2>/dev/null
 export GHOST_HOME=/ghost
 export PYTHONPATH=/ghost
-python -m ghost.daemon
+
+pip install -q watchdog 2>/dev/null
+
+exec watchmedo auto-restart \
+    --directory=/ghost/ghost \
+    --directory=/ghost/lib \
+    --pattern='*.py' \
+    --recursive \
+    -- python -m ghost.daemon
 "
 
 # ─── Build commands (bash only) ────────────────────────────────
@@ -95,7 +109,8 @@ if [ ! -d "${CONDA_DIR}" ] || [ ! -f "${CONDA_DIR}/bin/python" ]; then
         "${IMAGE}" \
         bash -c "
             conda create -y -p /conda_envs/${CONDA_ENV} python=3.12 && \
-            /conda_envs/${CONDA_ENV}/bin/pip install -r /ghost/requirements.txt
+            /conda_envs/${CONDA_ENV}/bin/pip install -r /ghost/requirements.txt && \
+            /conda_envs/${CONDA_ENV}/bin/pip install watchdog
         "
 
     echo "✓ Conda env ${CONDA_ENV} created at ${CONDA_DIR}"
